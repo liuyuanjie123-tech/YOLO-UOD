@@ -37,7 +37,6 @@ python start_val.py
 ## Cite
 You can cite our work in the following format:
 
-### AAAI-24
 ```bibtex
 @ARTICLE{11563894,
   author={Luo, Fulin and Liu, Yuanjie and Guo, Tan and Fu, Chuan and Lin, Yukun and Xiang, Tao and Du, Bo},
