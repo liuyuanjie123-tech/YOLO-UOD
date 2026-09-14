@@ -1,0 +1,69 @@
+# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
+
+# Parameters
+nc: 80  # number of classes
+
+#inplace 参数在 YOLO 配置文件中用来控制是否进行原地操作，即在不复制数据的情况下直接在原数据上进行修改，从而优化模型的内存使用和执行效率。
+#inplace 参数可能影响到一些涉及到激活函数、归一化操作或者其他数据处理的地方
+
+
+
+#depth_multiple：
+#depth_multiple 控制模型的深度倍增因子，影响模型的层数。
+#例如，如果一个层的数量为 n，那么在应用 depth_multiple 后，该层的实际数量将变为 round(n * depth_multiple)，其中 round 表示四舍五入到最接近的整数。
+#这个参数可以用来调整模型的复杂度，增加或减少模型的层数，以适应不同的应用场景或计算资源限制。
+
+depth_multiple: 0.33  # model depth multiple
+
+#width_multiple：
+#width_multiple 控制模型的宽度倍增因子，影响模型的通道数（即每层中的卷积核数量）。
+#通常情况下，每个卷积层的输出通道数可以通过 width_multiple 乘以原始的通道数得到，以此来调整模型的宽度。
+#这个参数可以用来调整模型的参数量和计算复杂度，也可以影响模型的准确性和速度。
+
+width_multiple: 0.50  # layer channel multiple
+anchors:
+  - [ 10,13, 16,30, 33,23 ]  # P3/8      三种小框的w,h
+  - [ 30,61, 62,45, 59,119 ]  # P4/16
+  - [ 116,90, 156,198, 373,326 ]  # P5/32
+
+backbone:
+  # [from, number, module, args]    层的输入来源索引， 层的数量，层的类型，层的参数
+
+  #  总结起来，from=-1 表示当前层的输入直接连接到前一个层的输出，是一种常见的模型设计方式，用于提高模型的特征表征能力和训练效率。
+  #  这种设计经常用于设计复杂的模型结构，例如使用残差块（Residual Blocks）或者特征金字塔网络（Feature Pyramid Network）,
+  #  这些网络结构能够通过跳跃连接有效地提高模型的性能和训练效率。
+  #  ExternalAttention  [-1, 1, Conv, [64, 6, 2, 2]   64是输出通道， 输入通道在配置文件中 后面是 kernel_size stride padding
+  [ [ -1, 1, Conv, [ 64, 6, 2, 2 ] ],# 0-P1/2    320
+    [ -1, 1, SC, [ 128, 3, 2 ] ],  # 1-P2/4     160
+    [ -1, 3, C2fAMSP, [ 128 ] ],               # 原：3
+    [ -1, 1, SC, [ 256, 3, 2 ] ],  # 3-P3/8       80
+    [ -1, 6, C2fAMSP, [ 256 ] ],
+    [ -1, 1, SC, [ 512, 3, 2 ] ],  # 5-P4/16     40
+    [ -1, 9, C2fAMSP, [ 512 ] ],
+    [ -1, 1, SC, [ 1024, 3, 2 ] ],  # 7-P5/32   20
+    [ -1, 3, C2fAMSP, [ 1024 ] ],
+    [ -1, 1, SPPF, [ 1024, 5 ] ],  # 9
+  ]
+
+head:
+  [ [ -1, 1, Conv, [ 512, 1, 1 ] ],
+    [ -1, 1, nn.Upsample, [ None, 2, 'nearest' ] ],
+    [ [ -1, 6 ], 1, Concat, [ 1 ] ],  # cat backbone P4
+    [ -1, 3, PWConv, [ 512 ] ],  # 13
+
+    [ -1, 1, Conv, [ 256, 1, 1 ] ],
+    [ -1, 1, nn.Upsample, [ None, 2, 'nearest' ] ],
+    [ [ -1, 4 ], 1, Concat, [ 1 ] ],  # cat backbone P3
+    [ -1, 3, PWConv, [ 256 ] ],  # 17 (P3/8-small)
+
+    [ -1, 1, Conv, [ 256, 3, 2 ] ],
+    [ [ -1, 14 ], 1, Concat, [ 1 ] ],  # cat head P4
+    [ -1, 3, PWConv, [ 512 ] ],  # 20 (P4/16-medium)
+
+    [ -1, 1, Conv, [ 512, 3, 2 ] ],
+    [ [ -1, 10 ], 1, Concat, [ 1 ] ],  # cat head P5
+    [ -1, 3, PWConv, [ 1024 ] ],  # 23 (P5/32-large)
+
+    [ [ 17, 20, 23 ], 1, Detect, [ nc, anchors ] ],  # Detect(P3, P4, P5)
+  ]
+
